@@ -1,5 +1,5 @@
 import { Logger, LoggerInstance } from "nano-errors";
-import Action from "./Action";
+import Action, { TransitionData } from "./Action";
 
 export interface FSMOptions<State> {
   name?: string;
@@ -171,7 +171,7 @@ export default abstract class FSM<Instance, State, Payload = any> {
 
       // TODO: Run this is series
       // Check if we can transition to the next state
-      const computedData = { ...(data || {}), to, from: state };
+      const computedData: TransitionData<State, Payload> = { to, from: state, payload: data };
       const results = await Promise.all(actions.map(action => action.onTransition(this.instance, computedData)));
 
       // Run own onTranstion

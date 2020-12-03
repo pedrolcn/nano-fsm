@@ -7,7 +7,6 @@
     "strict": true,
     "noUnusedLocals": true,
     "noFallthroughCasesInSwitch": false,
-    "noUncheckedIndexedAccess": true,
     "forceConsistentCasingInFileNames": true,
     "inlineSourceMap": true,
     "inlineSources": true,
