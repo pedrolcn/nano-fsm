@@ -15,6 +15,7 @@
   },
   "scripts": {
     "build": "yarn run -s clean && tsc",
+    "prepare": "yarn run build",
     "clean": "rimraf ./dist",
     "test": "jest --config jest.json",
     "docs": "./scripts/docs.sh",
