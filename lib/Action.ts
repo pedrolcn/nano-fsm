@@ -1,5 +1,7 @@
 import { Logger, LoggerInstance } from "nano-errors";
 
+export type StateOptions<State> = State | State[] | '*';
+
 export interface ActionOptions {
   name?: string;
   logger?: LoggerInstance;
@@ -12,14 +14,32 @@ export type TransitionBasicData<State> = {
 
 export type TransitionData<State, Payload = any> = TransitionBasicData<State> & Payload;
 
+/**
+ * An action which occurs for one or many specific state transitions.
+ */
 export default abstract class Action<Instance, State, Payload = any> {
-  public abstract from: State | string | (State | string)[];
-  public abstract to: State | string | (State | string)[];
+  /**
+   * The origin states for which the action is triggered.
+   */
+  public abstract from: StateOptions<State>;
+
+  /**
+   * The destination states for which the action is triggered
+   */
+  public abstract to: StateOptions<State>;
+
+  /**
+   * The name of the action, may be specified when instantiating the action, otherwise defaults to the class name.
+   */
   public name: string;
-  protected logger;
+
+  /**
+   * An instance of a logger which implements the same interface as the Winston Logger.
+   */
+  protected logger: LoggerInstance;
 
   constructor(protected options: ActionOptions = {}) {
-    this.name = options.name || this.name || this.constructor.name;
+    this.name = options.name || this.constructor.name;
     this.logger = options.logger || Logger.getInstance();
   }
 

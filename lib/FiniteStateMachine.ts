@@ -13,14 +13,19 @@ export interface FSMOptions<State> {
  */
 export default abstract class FSM<Instance, State, Payload = any> {
   public name: string;
+
   protected abstract actions: Action<Instance, State, Payload>[];
+
   protected abstract initialState: State;
+
   protected abstract states: State[];
+
   protected logger: LoggerInstance;
-  protected _state: State;
+
+  protected _state: State | undefined;
 
   constructor(public instance: Instance, protected options: FSMOptions<State> = {}) {
-    this.name = options.name || this.name || this.constructor.name;
+    this.name = options.name || this.constructor.name;
     this.logger = options.logger || Logger.getInstance();
   }
 
@@ -56,7 +61,7 @@ export default abstract class FSM<Instance, State, Payload = any> {
   /**
    * Handles a state transition preparation
    */
-  public beforeTransition(from: State | (State | string)[], to: State, data: Payload): void {
+  public beforeTransition(from: State | (State | string)[], to: State, data?: Payload): void {
     this.logger.silly(`${this.name}: leaving state(s) "${Array.isArray(from) ? from.join(`", "`) : from}"`, { data });
   }
 
@@ -65,7 +70,7 @@ export default abstract class FSM<Instance, State, Payload = any> {
    *
    * @param data The transition payload passed to the fsm.goTo() method.
    */
-  public async onTransition(from: State | (State | string)[], to: State, data: Payload): Promise<boolean> {
+  public async onTransition(from: State | (State | string)[], to: State, data?: Payload): Promise<boolean> {
     this.logger.silly(
       `${this.name}: transitioning states "${Array.isArray(from) ? from.join(`", "`) : from}" => "${to}"`,
       { data }
@@ -76,7 +81,7 @@ export default abstract class FSM<Instance, State, Payload = any> {
   /**
    * Handles post transition results.
    */
-  public afterTransition(from: State | (State | string)[], to: State, data: Payload): void {
+  public afterTransition(from: State | (State | string)[], to: State, data?: Payload): void {
     this.logger.silly(`${this.name}: entering "${to}"`, { data });
   }
 
