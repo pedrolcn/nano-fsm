@@ -7,7 +7,7 @@ export interface ActionOptions {
   logger?: LoggerInstance;
 }
 
-export type TransitionBasicData<State> = {
+export interface TransitionBasicData<State> {
   from: StateOptions<State>;
   to: StateOptions<State>;
 }

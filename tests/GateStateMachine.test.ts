@@ -2,7 +2,7 @@ import { GateStateMachine, GateState } from "../examples";
 import { Logger } from "nano-errors";
 
 describe("lib.samples.GateStateMachine", () => {
-  let gate;
+  let gate: GateStateMachine;
   Logger.initialize();
 
   beforeEach(async () => {
@@ -20,14 +20,14 @@ describe("lib.samples.GateStateMachine", () => {
     await expect(gate.goTo(GateState.LOCKED)).rejects.toThrow(/already in \"locked\" state/gi);
 
     // Should be able to go to OPEN, but never accomplish.
-    expect(gate.canGoTo(GateState.OPENED)).toBe(true);
-    expect(await gate.goTo(GateState.OPENED)).toBe(false);
+    expect(gate.canGoTo(GateState.OPEN)).toBe(true);
+    expect(await gate.goTo(GateState.OPEN)).toBe(false);
 
     // Should not go to current state either
     expect(gate.canGoTo(GateState.LOCKED)).toBe(false);
 
     // Should be able to move to a state where the from and to are defined as arrays
-    expect(gate.canGoTo(GateState.EXPLODED)).toBe(true);
+    expect(gate.canGoTo(GateState.DESTROYED)).toBe(true);
   });
 
   it("should transition to a valid state with a valid payload", async () => {
@@ -40,24 +40,24 @@ describe("lib.samples.GateStateMachine", () => {
     expect(gate.state).toBe(GateState.CLOSED);
 
     // Open the gate!
-    await gate.goTo(GateState.OPENED);
-    expect(gate.state).toBe(GateState.OPENED);
+    await gate.goTo(GateState.OPEN);
+    expect(gate.state).toBe(GateState.OPEN);
 
     // Try to explode the gate - an invalid transition
-    await expect(gate.goTo(GateState.EXPLODED)).rejects.toThrow(/no action available/gi);
-    expect(gate.state).toBe(GateState.OPENED);
+    await expect(gate.goTo(GateState.DESTROYED)).rejects.toThrow(/no action available/gi);
+    expect(gate.state).toBe(GateState.OPEN);
 
     // Close the gate!
     await gate.goTo(GateState.CLOSED);
     expect(gate.state).toBe(GateState.CLOSED);
 
     // Explode the gate!
-    expect(await gate.goTo(GateState.EXPLODED)).toBe(true);
-    expect(gate.state).toBe(GateState.EXPLODED);
+    expect(await gate.goTo(GateState.DESTROYED)).toBe(true);
+    expect(gate.state).toBe(GateState.DESTROYED);
 
-    // Try to open the exploded gate, it will not work.
-    await expect(gate.goTo(GateState.OPENED)).rejects.toThrow(/gate has been exploded/gi);
-    expect(gate.state).toBe(GateState.EXPLODED);
+    // Try to open the DESTROYED gate, it will not work.
+    await expect(gate.goTo(GateState.OPEN)).rejects.toThrow(/Gate has been exploded/gi);
+    expect(gate.state).toBe(GateState.DESTROYED);
   });
 
   it("should not transition to a valid state without a valid payload", async () => {
@@ -71,11 +71,11 @@ describe("lib.samples.GateStateMachine", () => {
   });
 
   it("should not transition unknown state ", async () => {
-    expect(gate.goTo("unknonwn")).rejects.toThrow(/Invalid state/gi);
+    expect(gate.goTo("unknonwn" as any)).rejects.toThrow(/Invalid state/gi);
   });
 
   describe("allow same state", async () => {
-    let gate;
+    let gate: GateStateMachine;
 
     beforeEach(async () => {
       gate = new GateStateMachine(
@@ -83,20 +83,20 @@ describe("lib.samples.GateStateMachine", () => {
           name: "Test Gate",
           password: "test"
         },
-        { state: GateState.OPENED, allowSameState: true }
+        { state: GateState.OPEN, allowSameState: true }
       );
     });
 
     it("should transition to the initial state properly", async () => {
       // Should go to current state
-      expect(gate.state).toBe(GateState.OPENED);
-      expect(gate.canGoTo(GateState.OPENED)).toBe(true);
-      expect(await gate.goTo(GateState.OPENED)).toBe(true);
+      expect(gate.state).toBe(GateState.OPEN);
+      expect(gate.canGoTo(GateState.OPEN)).toBe(true);
+      expect(await gate.goTo(GateState.OPEN)).toBe(true);
     });
   });
 
   describe("invalid initial state", async () => {
-    let gate;
+    let gate: GateStateMachine;
 
     beforeEach(async () => {
       gate = new GateStateMachine({
@@ -104,7 +104,7 @@ describe("lib.samples.GateStateMachine", () => {
         password: "test"
       });
 
-      gate.initialState = "unknown";
+      gate.initialState = "unknown" as any;
     });
 
     it("should transition to the initial state properly", async () => {
@@ -114,7 +114,7 @@ describe("lib.samples.GateStateMachine", () => {
   });
 
   describe("invalid initial state from constructor", async () => {
-    let gate;
+    let gate: GateStateMachine;
 
     beforeEach(async () => {
       gate = new GateStateMachine(

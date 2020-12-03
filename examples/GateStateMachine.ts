@@ -2,6 +2,9 @@ import FSM, { Action, TransitionData } from "../lib";
 
 /** A gate which may or may not let travelers pass */
 export interface Gate {
+  /** The name of the gate */
+  name: string;
+
   /** The password used to unlock the gate */
   password: string;
 }
@@ -47,7 +50,7 @@ export class UnlockGateAction extends Action<Gate, GateState, GatePayload> {
    * Ensures the gate password is checked when unlocking.
    */
   async onTransition(instance: Gate, data: TransitionData<GateState, GatePayload>) {
-    if (data && instance.password === data.payload.password) {
+    if (data && instance.password === data.payload?.password) {
       return true;
     }
     throw new Error("Invalid gate password, cannot unlock");
