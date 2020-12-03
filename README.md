@@ -35,7 +35,6 @@ Let's define a Gate, with a simple unlocking password and 3 states: `opened`, `c
  * The Gate interface, for mapping database models for example.
  */
 export interface Gate {
-  name: string;
   password: string;
 }
 
@@ -43,9 +42,17 @@ export interface Gate {
  * The available states for a Gate in the machine.
  */
 export enum GateState {
-  OPENED = "opened", // Gate is opened for travelers
-  CLOSED = "closed", // Gate is closed but unlocked, it may be opened by travelers
-  LOCKED = "locked" // Gate is closed and locked, cannot unlock without a password
+  /** Gate is open for travelers */
+  OPEN = "open",
+
+  /** Gate is closed but unlocked. It may be opened by travelers */
+  CLOSED = "closed",
+
+  /** Gate is closed and locked, cannot be unlocked without a password */
+  LOCKED = "locked",
+
+  /** Gate is destroyed and cannot be acted upon anymore */
+  DESTROYED = "destroyed",
 }
 ```
 
@@ -54,16 +61,19 @@ Now, we can define the available transitions between these states.
 ```typescript
 export class OpenGateAction extends Action<Gate, GateState> {
   from = GateState.CLOSED;
-  to = GateState.OPENED;
+
+  to = GateState.OPEN;
 }
 
 export class CloseGateAction extends Action<Gate, GateState> {
-  from = GateState.OPENED;
+  from = GateState.OPEN;
+
   to = GateState.CLOSED;
 }
 
 export class LockGateAction extends Action<Gate, GateState> {
-  from = [GateState.CLOSED]; // Array of States also works!
+  from = GateState.CLOSED;
+
   to = GateState.LOCKED;
 }
 ```
@@ -71,35 +81,56 @@ export class LockGateAction extends Action<Gate, GateState> {
 For the unlocking mechanism, we need a password validation inside the transition.
 
 ```typescript
-export class UnlockGateAction extends Action<Gate, GateState> {
+export class UnlockGateAction extends Action<Gate, GateState, GatePayload> {
   from = GateState.LOCKED;
+
   to = GateState.CLOSED;
 
   /**
    * Ensures the gate password is checked when unlocking.
    */
-  async onTransition(instance: Gate, data?: { password: string }) {
-    if (data && instance.password === data.password) {
-      return super.onTransition(instance, data);
+  async onTransition(instance: Gate, data: TransitionData<GateState, GatePayload>) {
+    if (data && instance.password === data.payload.password) {
+      return true;
     }
     throw new Error("Invalid gate password, cannot unlock");
   }
 }
 ```
 
-Wildcard is supported (regex coming soon)
-
+An action can also support many `from` states as well as multiple `to` states:
 ```typescript
-export class LockedMessageGateAction extends Action<Gate, GateState> {
-  from = '*';
-  to = GateState.CLOSED;
+export class ExplodeGateAction extends Action<Gate, GateState> {
+  from = [GateState.CLOSED, GateState.LOCKED];
 
-  /**
-   * Sends info log after any transition to "CLOSED" state 
-   */
-  afterTransition() {
-    // Be careful with widcards, they enable any state transition with a matching pair!
-    this.logger.info('Gate is closed!');
+  to = [GateState.DESTROYED];
+}
+```
+
+Wildcard is supported
+```typescript
+export class LockedGateMessageAction extends Action<Gate, GateState, GatePayload> {
+  from = '*' as const;
+
+  to = GateState.OPEN;
+
+  async onTransition(instance: Gate, data: TransitionData<GateState, GatePayload>) {
+    if (data.from === GateState.LOCKED) {
+      this.logger.warn('Gate is locked! We need a password');
+      return false;
+    }
+    return true;
+  }
+}
+
+
+export class AlreadyExplodedGateAction extends Action<Gate, GateState> {
+  from = GateState.DESTROYED;
+
+  to = '*' as const;
+
+  async onTransition(instance: Gate, data: TransitionData<GateState, GatePayload>): Promise<boolean> {
+    throw new Error('Gate has been exploded, nothing left to do with it');
   }
 }
 ```
@@ -107,9 +138,17 @@ export class LockedMessageGateAction extends Action<Gate, GateState> {
 Finally, our Gate State Machine can be created.
 
 ```typescript
-export default class GateStateMachine extends FSM<Gate, GateState> {
+export default class GateStateMachine extends FSM<Gate, GateState, GatePayload> {
   /* Sets the machine initial state */
-  state: GateState = GateState.CLOSED;
+  initialState: GateState = GateState.CLOSED;
+
+  /* The available states */
+  states: GateState[] = [
+    GateState.OPEN,
+    GateState.CLOSED,
+    GateState.LOCKED,
+    GateState.DESTROYED,
+  ];
 
   /* Sets the machine available actions */
   actions = [
@@ -117,6 +156,9 @@ export default class GateStateMachine extends FSM<Gate, GateState> {
     new CloseGateAction(),
     new LockGateAction(),
     new UnlockGateAction(),
+    new LockedGateMessageAction(),
+    new ExplodeGateAction(),
+    new AlreadyExplodedGateAction(),
   ];
 }
 ```

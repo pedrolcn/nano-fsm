@@ -1,41 +1,56 @@
 import FSM, { Action, TransitionData } from "../lib";
 
+/** A gate which may or may not let travelers pass */
 export interface Gate {
+  /** The name of the gate */
   name: string;
+
+  /** The password used to unlock the gate */
   password: string;
 }
 
 export enum GateState {
-  OPENED = "opened", // Gate is opened for travelers
-  CLOSED = "closed", // Gate is closed but unlocked, it may be opened by travelers
-  LOCKED = "locked", // Gate is closed and locked, cannot unlock without a password
-  EXPLODED = "exploded", // Gate is exploded and can't be acted upon anymore
+  /** Gate is open for travelers */
+  OPEN = "open",
+
+  /** Gate is closed but unlocked. It may be opened by travelers */
+  CLOSED = "closed",
+
+  /** Gate is closed and locked, cannot be unlocked without a password */
+  LOCKED = "locked",
+
+  /** Gate is destroyed and cannot be acted upon anymore */
+  DESTROYED = "destroyed",
 }
 
 export class OpenGateAction extends Action<Gate, GateState> {
   from = GateState.CLOSED;
-  to = GateState.OPENED;
+
+  to = GateState.OPEN;
 }
 
 export class CloseGateAction extends Action<Gate, GateState> {
-  from = GateState.OPENED;
+  from = GateState.OPEN;
+
   to = GateState.CLOSED;
 }
 
 export class LockGateAction extends Action<Gate, GateState> {
   from = GateState.CLOSED;
+
   to = GateState.LOCKED;
 }
 
 export class UnlockGateAction extends Action<Gate, GateState, GatePayload> {
   from = GateState.LOCKED;
+
   to = GateState.CLOSED;
 
   /**
    * Ensures the gate password is checked when unlocking.
    */
   async onTransition(instance: Gate, data: TransitionData<GateState, GatePayload>) {
-    if (data && instance.password === data.password) {
+    if (data && instance.password === data.payload?.password) {
       return true;
     }
     throw new Error("Invalid gate password, cannot unlock");
@@ -43,8 +58,9 @@ export class UnlockGateAction extends Action<Gate, GateState, GatePayload> {
 }
 
 export class LockedGateMessageAction extends Action<Gate, GateState, GatePayload> {
-  from = '*';
-  to = GateState.OPENED;
+  from = '*' as const;
+
+  to = GateState.OPEN;
 
   async onTransition(instance: Gate, data: TransitionData<GateState, GatePayload>) {
     if (data.from === GateState.LOCKED) {
@@ -57,12 +73,14 @@ export class LockedGateMessageAction extends Action<Gate, GateState, GatePayload
 
 export class ExplodeGateAction extends Action<Gate, GateState> {
   from = [GateState.CLOSED, GateState.LOCKED];
-  to = [GateState.EXPLODED];
+
+  to = [GateState.DESTROYED];
 }
 
 export class AlreadyExplodedGateAction extends Action<Gate, GateState> {
-  from = GateState.EXPLODED;
-  to = '*';
+  from = GateState.DESTROYED;
+
+  to = '*' as const;
 
   async onTransition(instance: Gate, data: TransitionData<GateState, GatePayload>): Promise<boolean> {
     throw new Error('Gate has been exploded, nothing left to do with it');
@@ -79,10 +97,10 @@ export default class GateStateMachine extends FSM<Gate, GateState, GatePayload> 
 
   /* The available states */
   states: GateState[] = [
-    GateState.OPENED,
+    GateState.OPEN,
     GateState.CLOSED,
     GateState.LOCKED,
-    GateState.EXPLODED,
+    GateState.DESTROYED,
   ];
 
   /* Sets the machine available actions */
@@ -95,8 +113,4 @@ export default class GateStateMachine extends FSM<Gate, GateState, GatePayload> 
     new ExplodeGateAction(),
     new AlreadyExplodedGateAction(),
   ];
-
-  async beforeTransition(from, to, data) {
-    super.beforeTransition(from, to, data)
-  }
 }
