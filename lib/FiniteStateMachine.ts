@@ -1,20 +1,29 @@
 import { Logger, LoggerInstance } from "nano-errors";
 import Action, { TransitionData } from "./Action";
 
-export interface FSMOptions<State> {
+export interface FSMOptions<State, Context> {
+  /** An optional name for the state machine */
   name?: string;
+
+  /** The current state of the state machine */
   state?: State;
+
+  /** A logger instance which implements the Winston.logger interface */
   logger?: LoggerInstance;
+
+  /** Allow transitions to the same state, otherwise throws an error */
   allowSameState?: boolean;
+
+  context?: Context
 }
 
 /**
  * The main Finite State Machine manager, that holds all available actions and performs the state transitions.
  */
-export default abstract class FSM<Instance, State, Payload = any> {
+export default abstract class FSM<Instance, State, Payload = any, Context = {}> {
   public name: string;
 
-  protected abstract actions: Action<Instance, State, Payload>[];
+  protected abstract actions: Action<Instance, State, Payload, Context>[];
 
   protected abstract initialState: State;
 
@@ -24,8 +33,13 @@ export default abstract class FSM<Instance, State, Payload = any> {
 
   protected _state: State | undefined;
 
-  constructor(public instance: Instance, protected options: FSMOptions<State> = {}) {
+  public context: Context;
+
+  constructor(public instance: Instance, protected options: FSMOptions<State, Context> = {}) {
     this.name = options.name || this.constructor.name;
+
+    this.context = options.context || ({} as any);
+
     this.logger = options.logger || Logger.getInstance();
   }
 
@@ -90,7 +104,7 @@ export default abstract class FSM<Instance, State, Payload = any> {
    *
    * @param to The desired state
    */
-  public pathsTo(to: State): false | Action<Instance, State>[] {
+  public pathsTo(to: State): false | Action<Instance, State, Payload, Context>[] {
     if (to === this.state && !this.options.allowSameState) {
       return false;
     }
@@ -150,18 +164,22 @@ export default abstract class FSM<Instance, State, Payload = any> {
     const actions = this.pathsTo(to);
 
     if (actions) {
-      const froms = actions.length ? actions.reduce(
-        (states, action) => {
-          if (Array.isArray(action.from)) {
-            (action.from as State[]).forEach(state => states.push(state));
-          } else {
-            states.push(action.from);
-          }
+      const froms = actions.length
+        ? actions.reduce(
+            (states, action) => {
+              if (Array.isArray(action.from)) {
+                (action.from as State[]).forEach(state => states.push(state));
+              } else {
+                states.push(action.from);
+              }
 
-          return states;
-        },
-        [] as (State | string)[]
-      ) : this.state;
+              return states;
+            },
+            [] as (State | string)[]
+          )
+        : this.state;
+
+      actions.forEach(action => action.setContext(this.context));
 
       // Notify we're leaving the current state
       await Promise.all(actions.map(action => action.beforeTransition(this.instance)));
@@ -176,8 +194,7 @@ export default abstract class FSM<Instance, State, Payload = any> {
 
       // Run own onTranstion
       results.push(await this.onTransition(froms, to, data));
-
-      const ok = results.reduce((aggr, next) => aggr && next, true);
+      const ok = results.every(result => result);
 
       if (ok) {
         await this.setState(to);

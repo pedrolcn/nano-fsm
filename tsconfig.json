@@ -15,8 +15,8 @@
     "removeComments": false,
     "declarationDir": "dist/types",
     "lib": [
-      "es2017",
-      "dom"
+      "ES2017",
+      "DOM"
     ]
   },
   "include": [

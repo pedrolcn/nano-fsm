@@ -19,12 +19,12 @@ export interface TransitionData<State, Payload> extends TransitionBasicData<Stat
 /**
  * An action which occurs for one or many specific state transitions.
  */
-export default abstract class Action<Instance, State, Payload = any> {
+export default abstract class Action<Instance, State, Payload = any, Context = {}> {
   /** The origin states for which the action is triggered. */
-  public abstract from: StateOptions<State>;
+  public abstract readonly from: StateOptions<State>;
 
   /** The destination states for which the action is triggered. */
-  public abstract to: StateOptions<State>;
+  public abstract readonly to: StateOptions<State>;
 
   /** The name of the action, defaults to the class name. */
   public name: string;
@@ -32,9 +32,15 @@ export default abstract class Action<Instance, State, Payload = any> {
   /** An instance of a logger which implements the same interface as the Winston Logger */
   protected logger: LoggerInstance;
 
+  protected context: Context | undefined;
+
   constructor(protected options: ActionOptions = {}) {
     this.name = options.name || this.constructor.name;
     this.logger = options.logger || Logger.getInstance();
+  }
+
+  public setContext(context: Context): void {
+    this.context = context;
   }
 
   /**
